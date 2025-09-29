@@ -87,13 +87,13 @@ def get_slide_content_with_charts(topic, n_slides):
 
     Rules:
     - Return ONLY valid JSON, no explanations or markdown.
-    - "intro" must be maximum 1â€“2 lines (<=150 characters).
+    - "intro" must be maximum 1 or 2 lines (<=150 characters).
     - Each slide must include:
       - "title": max 8 words
       - "insight": one sentence
       - "type": either "bullets" or "chart"
       - If "type" = "bullets", "data" must be an array of objects:
-        {{"point": "short phrase", "desc": "1â€“2 line explanation"}}
+        {{"point": "short phrase", "desc": "1 or 2 line explanation"}}
       - If "type" = "chart", "data" must be JSON:
         {{
           "type": "BAR" | "LINE" | "PIE" | "COLUMN" | "DOUGHNUT" | "AREA" | "SCATTER" | "STACKED_BAR",
@@ -348,7 +348,8 @@ def build_mckinsey_ppt(parsed_data, topic):
             image_path = fetch_image(f"{slide_content['title']} {slide_content['insight']}", topic)
             add_enhanced_text_and_image_slide(slide, slide_content['data'], image_path)
 
-    filename = topic.strip().replace(" ", "_") + "_McKinsey_Style.pptx"
+    safe_topic = safe_filename(topic.strip().replace(" ", "_"))
+    filename = safe_topic + "_McKinsey_Style.pptx"
     prs.save(filename)
     print(f"\nPresentation saved as: {filename}")
     return filename
@@ -418,6 +419,9 @@ def add_enhanced_footer(slide, slide_number):
     p2.font.size = Pt(9)
     p2.font.color.rgb = MCKINSEY_COLORS["dark_gray"]
 
+def safe_filename(name: str) -> str:
+    # Replace illegal characters with underscore
+    return re.sub(r'[<>:"/\\|?*]', '_', name)
 def fetch_image(prompt: str, topic: str) -> str:
     """Enhanced image fetching with multiple sources."""
     from urllib.parse import quote
@@ -628,7 +632,7 @@ def add_enhanced_text_and_image_slide(slide, bullets, image_path):
     for bullet in bullets:
         if isinstance(bullet, dict):
             p = tf.add_paragraph()
-            p.text = f"â€¢ {bullet.get('point','').strip()}"
+            p.text = f" {bullet.get('point','').strip()}"
             p.font.name = FONT_NAME
             p.font.size = Pt(16)
             p.font.color.rgb = MCKINSEY_COLORS["text"]
@@ -646,7 +650,7 @@ def add_enhanced_text_and_image_slide(slide, bullets, image_path):
                 desc_p.space_after = Pt(12)
         else:
             p = tf.add_paragraph()
-            p.text = f"â€¢ {str(bullet).strip()}"
+            p.text = f" {str(bullet).strip()}"
             p.font.name = FONT_NAME
             p.font.size = Pt(16)
             p.font.color.rgb = MCKINSEY_COLORS["text"]
@@ -1128,7 +1132,7 @@ def convert_ppt_to_images(ppt_path, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        # Step 1: Convert PPT â†’ PDF
+        # Step 1: Convert PPT to PDF
         cmd = [
             "soffice", "--headless", "--convert-to", "pdf",
             "--outdir", output_dir, ppt_path
@@ -1146,7 +1150,7 @@ def convert_ppt_to_images(ppt_path, output_dir):
             logger.error("PDF not found after LibreOffice export")
             return []
 
-        # Step 3: Convert PDF pages â†’ PNGs
+        # Step 3: Convert PDF pages PNGs
         images = convert_from_path(pdf_path, dpi=200)
         image_files = []
         for i, page in enumerate(images, start=1):
@@ -1220,70 +1224,137 @@ def convert_ppt_to_images(ppt_path, output_dir):
 #     except Exception as e:
 #         logger.error(f"Failed to create video: {e}")
 #         return None
-def create_video_from_slides_and_audio(image_files, audio_files, output_path):
-    """Create video from slide images and audio files."""
-    logger.info("Creating video from slides and audio...")
+# def create_video_from_slides_and_audio(image_files, audio_files, output_path):
+#     """Create video from slide images and audio files."""
+#     logger.info("Creating video from slides and audio...")
     
+#     try:
+#         import moviepy.editor as mp_editor
+        
+#         video_clips = []
+        
+#         for i, (image_path, audio_path) in enumerate(zip(image_files, audio_files)):
+#             if not os.path.exists(image_path) or not os.path.exists(audio_path):
+#                 logger.warning(f"Missing file for slide {i+1}")
+#                 continue
+            
+#             # Get audio duration
+#             audio_duration = get_audio_duration(audio_path)
+#             logger.info(f"Slide {i+1}: {audio_duration:.1f}s duration")
+            
+#             # Create image clip - CORRECTED
+#             img_clip = mp_editor.ImageClip(image_path, duration=audio_duration)
+            
+#             # Load audio - CORRECTED
+#             audio_clip = mp_editor.AudioFileClip(audio_path)
+            
+#             # Combine image and audio - CORRECTED
+#             video_clip = img_clip.set_audio(audio_clip)
+            
+#             # Add fade transition
+#             if i > 0:
+#                 video_clip = video_clip.fadein(VIDEO_CONFIG["transition_duration"])
+            
+#             video_clips.append(video_clip)
+#             logger.info(f"Processed slide {i+1}")
+        
+#         if not video_clips:
+#             raise Exception("No valid video clips created")
+        
+#         # Concatenate all clips
+#         logger.info("Concatenating video clips...")
+#         final_video = mp_editor.concatenate_videoclips(video_clips, method="compose")
+        
+#         # Write the video file
+#         logger.info(f"Writing video to {output_path}...")
+#         final_video.write_videofile(
+#             output_path,
+#             fps=VIDEO_CONFIG["fps"],
+#             codec='libx264',
+#             audio_codec='aac',
+#             temp_audiofile='temp-audio.m4a',
+#             remove_temp=True,
+#             verbose=False,
+#             logger=None
+#         )
+        
+#         # Clean up
+#         for clip in video_clips:
+#             clip.close()
+#         final_video.close()
+        
+#         logger.info(f"Video created successfully: {output_path}")
+#         return output_path
+        
+#     except ImportError:
+#         logger.error("MoviePy not properly installed. Please install with: pip install moviepy")
+#         return None
+#     except Exception as e:
+#         logger.error(f"Failed to create video: {e}")
+#         return None
+def create_video_from_slides_and_audio(image_files, audio_files, output_path):
+    """Create video from slide images and audio files (single clean audio track)."""
+    logger.info("Creating video from slides and audio (fixed version)...")
+
     try:
         import moviepy.editor as mp_editor
-        
-        video_clips = []
-        
-        for i, (image_path, audio_path) in enumerate(zip(image_files, audio_files)):
-            if not os.path.exists(image_path) or not os.path.exists(audio_path):
-                logger.warning(f"Missing file for slide {i+1}")
+
+        # Validate
+        if not image_files or not audio_files:
+            raise ValueError("No image or audio files provided")
+
+        # 1. Load all audio files and get durations
+        audio_clips = []
+        durations = []
+        for audio_path in audio_files:
+            if not os.path.exists(audio_path):
+                logger.warning(f"Audio file missing: {audio_path}")
                 continue
-            
-            # Get audio duration
-            audio_duration = get_audio_duration(audio_path)
-            logger.info(f"Slide {i+1}: {audio_duration:.1f}s duration")
-            
-            # Create image clip - CORRECTED
-            img_clip = mp_editor.ImageClip(image_path, duration=audio_duration)
-            
-            # Load audio - CORRECTED
-            audio_clip = mp_editor.AudioFileClip(audio_path)
-            
-            # Combine image and audio - CORRECTED
-            video_clip = img_clip.set_audio(audio_clip)
-            
-            # Add fade transition
-            if i > 0:
-                video_clip = video_clip.fadein(VIDEO_CONFIG["transition_duration"])
-            
-            video_clips.append(video_clip)
-            logger.info(f"Processed slide {i+1}")
-        
-        if not video_clips:
-            raise Exception("No valid video clips created")
-        
-        # Concatenate all clips
-        logger.info("Concatenating video clips...")
-        final_video = mp_editor.concatenate_videoclips(video_clips, method="compose")
-        
-        # Write the video file
+            clip = mp_editor.AudioFileClip(audio_path)
+            audio_clips.append(clip)
+            durations.append(clip.duration)
+
+        if not audio_clips:
+            raise ValueError("No valid audio clips loaded")
+
+        # 2. Concatenate all audio into one track
+        final_audio = mp_editor.concatenate_audioclips(audio_clips)
+
+        # 3. Create image sequence clip with durations matching audio
+        min_length = min(len(image_files), len(durations))
+        image_files = image_files[:min_length]
+        durations = durations[:min_length]
+
+        video_clip = mp_editor.ImageSequenceClip(image_files, durations=durations)
+
+        # 4. Attach the single audio track
+        final_video = video_clip.set_audio(final_audio)
+
+        # 5. Export final video
         logger.info(f"Writing video to {output_path}...")
         final_video.write_videofile(
             output_path,
             fps=VIDEO_CONFIG["fps"],
-            codec='libx264',
-            audio_codec='aac',
-            temp_audiofile='temp-audio.m4a',
+            codec="libx264",
+            audio_codec="aac",
+            temp_audiofile="temp-audio.m4a",
             remove_temp=True,
             verbose=False,
-            logger=None
+            logger=None,
         )
-        
+
         # Clean up
-        for clip in video_clips:
+        final_audio.close()
+        for clip in audio_clips:
             clip.close()
+        video_clip.close()
         final_video.close()
-        
-        logger.info(f"Video created successfully: {output_path}")
+
+        logger.info(f" Video created successfully: {output_path}")
         return output_path
-        
+
     except ImportError:
-        logger.error("MoviePy not properly installed. Please install with: pip install moviepy")
+        logger.error("MoviePy not installed. Run: pip install moviepy")
         return None
     except Exception as e:
         logger.error(f"Failed to create video: {e}")
@@ -1542,7 +1613,7 @@ if __name__ == "__main__":
         refined_text = refine_paragraph_input(context_text, category)
 
         topic = generate_topic_from_paragraph(context_text)
-        print(f"â†’ Generated topic: {topic}")
+        print(f"Generated topic: {topic}")
 
         print("\n[3/6] Generating JSON slides...")
         raw_content = get_slide_content_from_paragraph(refined_text, category)
